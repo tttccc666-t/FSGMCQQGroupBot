@@ -32,7 +32,7 @@ DASHSCOPE_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-
 DRAW_DAILY_LIMIT = 5
 
 # 启用的群组
-ENABLED_GROUPS = [923820685] 
+ENABLED_GROUPS = [123456789] 
 
 # 违禁词库
 BAN_WORDS = {
