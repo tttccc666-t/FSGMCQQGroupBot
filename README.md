@@ -1,9 +1,9 @@
 # 基于 NapCatQQ 框架的 QQ Bot
 
-FSGMC 交流群正在使用的机器人框架。
-一个基于 **Python** + **OneBot 11 (NapCatQQ)** 协议的群聊机器人。
-集成了 **DeepSeek 大模型对话**、**阿里云通义万相 AI 绘图** 以及 **群组自动化管理** 功能。
-拥有可爱的“猫娘”人设，支持戳一戳互动和进群欢迎。
+FSGMC 交流群正在使用的机器人框架。  
+一个基于 **Python** + **OneBot 11 (NapCatQQ)** 协议的群聊机器人。  
+集成了 **DeepSeek 大模型对话**、**阿里云通义万相 AI 绘图** 以及 **群组自动化管理** 功能。  
+拥有可爱的“猫娘”人设，支持戳一戳互动和进群欢迎。  
 ![MIT License](https://img.shields.io/badge/License-MIT_License-blue "MIT License")
 ## ✨ 功能特性
 
