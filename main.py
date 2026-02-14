@@ -133,7 +133,7 @@ class QQBot:
         if message_id:
             self.send_ws("delete_msg", {"message_id": message_id})
 
-    # ---------------- 新增：通知处理 (戳一戳/进群) ----------------
+    # ---------------- 通知处理 (戳一戳/进群) ----------------
 
     def handle_notice(self, data):
         """处理通知事件"""
@@ -252,14 +252,14 @@ class QQBot:
         try:
             response = requests.post(DEEPSEEK_URL, headers=headers, json=data, timeout=15)
             if response.status_code == 200:
-                reply = response.json()['choices'][0]['message']['content'].replace("瞌睡猫：", "").strip()
+                reply = response.json()['choices'][0]['message']['content'].replace("瞌睡猫：", "").strip() # 移除 AI 可能生成的多余前缀
                 self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] {reply}")
             else:
                 self.send_group_msg(group_id, "喵... 脑子短路了 (API Error)")
         except Exception as e:
             logger.error(f"DeepSeek 请求异常: {e}")
 
-    # ---------------- 违规检测 (含撤回) ----------------
+    # ---------------- 违规检测----------------
 
     def check_violation(self, raw_message, message_id, group_id, user_id, role):
         if role in ['admin', 'owner']: return False
@@ -332,7 +332,7 @@ class QQBot:
         if raw_message == "111睡觉模式":
             if role in ['admin', 'owner'] or user_id == OWNER_QQ:
                 self.set_group_ban(group_id, TARGET_111_QQ, 8 * 3600)
-                self.send_group_msg(group_id, f"收到！这就让TA强制睡觉觉！(禁言8小时) (¦3[▓▓]")
+                self.send_group_msg(group_id, f"收到！这就让TA强制睡觉觉！ (¦3[▓▓]")
             else:
                 self.send_group_msg(group_id, "你不是我主人，才不听你的呢 (哼)")
             return
