@@ -4,15 +4,17 @@ English | [中文](README.md)
 
 The bot framework currently used by the **FSGMC Community Group**.  
 A group chat bot built on **Python** and the **OneBot 11 (NapCatQQ)** protocol.  
-It integrates **DeepSeek Large Model conversations**, **Alibaba Cloud Tongyi Wanxiang AI drawing**, and **automated group management** functions.  
-It features a cute "Catgirl" persona, supporting "Poke" interactions and new member welcomes.  
+It integrates **DeepSeek Large Model conversations**, **Alibaba Cloud Tongyi Wanxiang AI drawing**, and **Qwen-VL Visual Recognition** functions.  
+It features a cute "Catgirl" persona, supporting "Poke" interactions, new member welcomes, and **Image Understanding**.  
 ![MIT License](https://img.shields.io/badge/License-MIT_License-blue "MIT License")
 
 ## ✨ Features
 
-### 🧠 AI Intelligent Interaction
+### 🧠 AI Intelligent Interaction (Multimodal)
 - **Smart Chat**: Accesses the DeepSeek V3 model with a distinct "Catgirl" persona. Supports context-aware conversations (triggered when @mentioned).
-- **AI Drawing**: Accesses the Alibaba Cloud `qwen-image-max` model for high-quality text-to-image generation.
+- **👀 Visual Recognition (New)**: Accesses the Alibaba Cloud `qwen-vl-plus` model.
+  - **Image Understanding**: Send an image and @mention the bot, and it will understand the content of the image and reply (e.g., "That cat in the picture is so cute!").
+- **🎨 AI Drawing**: Accesses the Alibaba Cloud `qwen-image` series model for high-quality text-to-image generation.
   - Command: `/绘画 prompt` or `/draw prompt`.
   - Limits: 5 times per day for normal users; unlimited for Administrators/Owner.
 - **Fun Interactions**:
@@ -41,7 +43,7 @@ It features a cute "Catgirl" persona, supporting "Poke" interactions and new mem
 2. **NapCatQQ** (or other OneBot 11 implementations), with a configured **Websocket Server**.
 3. **API Keys**:
    - DeepSeek API Key (for Chat)
-   - Alibaba Cloud DashScope API Key (for Drawing)
+   - Alibaba Cloud DashScope API Key (for **Drawing** and **Vision**)
 
 ## 📦 Installation & Configuration
 
@@ -67,7 +69,7 @@ TARGET_111_QQ = 0      # The specific target QQ for "111 Sleep Mode"
 
 # API Key Config
 DEEPSEEK_API_KEY = "sk-xxxxxxxx"
-DASHSCOPE_API_KEY = "sk-xxxxxxxx" # Alibaba Cloud Key
+DASHSCOPE_API_KEY = "sk-xxxxxxxx" # Alibaba Cloud Key (Must enable DashScope service)
 
 # Enabled Groups (Bot will only respond in groups listed here)
 ENABLED_GROUPS = [123456789, 987654321]
@@ -90,6 +92,7 @@ If you see the log output `WebSocket 连接成功` (WebSocket Connected Successf
 | Command/Action | Description | Example |
 | :--- | :--- | :--- |
 | **@Bot Content** | Chat with the AI Catgirl | `@SleepyCat Hello there` |
+| **@Bot [Image]** | **Let AI understand the image** | `@SleepyCat [Image] Look at this dog` |
 | **/draw Prompt** | AI Image Generation (Limit 5/day) | `/draw a cat eating fish` |
 | **赞我** | Ask the bot to like you | `赞我` |
 | **Double-click Avatar** | Trigger Poke interaction | (Action) |
@@ -108,6 +111,11 @@ If you see the log output `WebSocket 连接成功` (WebSocket Connected Successf
 
 **Q: Error `[WinError 10060]` Connection Timeout during startup?**
 A: Please check `WS_URL`. If the script and NapCat are on the same computer, use `ws://127.0.0.1:2354`. If they are not on the same computer, ensure the server firewall allows port 2354 and NapCat is listening on `0.0.0.0`.
+
+**Q: No response or error when sending images?**  
+A:  
+1. Ensure the image URL provided by NapCat is accessible from the internet.
+2. Check your Alibaba Cloud DashScope balance.
 
 ## 📝 Disclaimer
 
