@@ -24,9 +24,10 @@ TARGET_111_QQ = 12345678
 DEEPSEEK_API_KEY = "sk-xxxxx"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 
-# 阿里云绘图 API 配置
+# 阿里云配置 (绘图 + 识图)
 DASHSCOPE_API_KEY = "sk-xxxxx"
-DASHSCOPE_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+DASHSCOPE_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation" # 绘图
+DASHSCOPE_CHAT_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions" # 识图 (Qwen-VL)
 
 # 绘图限制
 DRAW_DAILY_LIMIT = 5
@@ -92,16 +93,12 @@ class QQBot:
         logger.error(f"WebSocket 错误: {error}")
 
     def on_message(self, ws, message):
-        """消息分发中心"""
         try:
             data = json.loads(message)
             if "echo" in data: return
             
-            # 1. 处理群消息 (聊天、指令)
             if data.get('post_type') == 'message' and data.get('message_type') == 'group':
                 self.handle_group_message(data)
-            
-            # 2. 处理通知事件 (戳一戳、进群) <--- 新增
             elif data.get('post_type') == 'notice':
                 self.handle_notice(data)
 
@@ -133,26 +130,20 @@ class QQBot:
         if message_id:
             self.send_ws("delete_msg", {"message_id": message_id})
 
-    # ---------------- 通知处理 (戳一戳/进群) ----------------
+    # ---------------- 通知处理 ----------------
 
     def handle_notice(self, data):
-        """处理通知事件"""
         notice_type = data.get('notice_type')
         sub_type = data.get('sub_type')
         group_id = data.get('group_id')
         user_id = data.get('user_id')
 
-        # 过滤未启用的群
         if group_id not in ENABLED_GROUPS: return
 
-        # === 1. 戳一戳检测 ===
-        # notice_type: notify, sub_type: poke
         if notice_type == 'notify' and sub_type == 'poke':
             target_id = data.get('target_id')
-            # 只有当被戳的是机器人(BOT_QQ)时才反应
             if target_id == BOT_QQ:
                 logger.info(f"被戳了 - 群:{group_id} 用户:{user_id}")
-                # 随机回复库
                 replies = [
                     f"[CQ:at,qq={user_id}] 呜哇... 谁在戳我呀？( >﹏< )",
                     f"[CQ:at,qq={user_id}] 哼，不理你 (扭头)",
@@ -161,14 +152,12 @@ class QQBot:
                 ]
                 self.send_group_msg(group_id, random.choice(replies))
 
-        # === 2. 进群欢迎 ===
-        # notice_type: group_increase
         elif notice_type == 'group_increase':
             logger.info(f"新人进群 - 群:{group_id} 用户:{user_id}")
             welcome_msg = f"欢迎新人 [CQ:at,qq={user_id}] 加入本群喵！ ( >ω<)ﾉ"
             self.send_group_msg(group_id, welcome_msg)
 
-    # ---------------- AI 绘图功能 ----------------
+    # ---------------- AI 绘图 / 识图 功能 ----------------
 
     def check_draw_limit(self, user_id, role):
         if role in ['admin', 'owner'] or user_id == OWNER_QQ:
@@ -193,44 +182,77 @@ class QQBot:
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {DASHSCOPE_API_KEY}"}
         payload = {
             "model": "qwen-image",
-            "input": {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [{"text": prompt}]
-                    }
-                ]
-            },
+            "input": {"messages": [{"role": "user", "content": [{"text": prompt}]}]},
             "parameters": {
                 "negative_prompt": "低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲，过于写实。",
-                "prompt_extend": False,
-                "watermark": False,
                 "size": "1664*928"
             }
         }
-
         try:
             response = requests.post(DASHSCOPE_URL, headers=headers, json=payload, timeout=90)
             if response.status_code == 200:
                 res_json = response.json()
                 try:
                     image_url = res_json['output']['choices'][0]['message']['content'][0]['image']
-                    self.send_group_msg(group_id, f"[CQ:at,qq={user_id}]\n画好啦！快夸我快夸我(≧∀≦)ゞ \n[CQ:image,file={image_url}]")
+                    self.send_group_msg(group_id, f"[CQ:at,qq={user_id}]\n画好啦！(≧∀≦)ゞ \n[CQ:image,file={image_url}]")
                     self.add_draw_count(user_id)
-                    logger.info(f"绘图成功: {image_url}")
                 except:
-                    msg = res_json.get('message', '未知错误')
-                    self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 呜呜... 画笔断掉了 (生成失败：{msg}) qwq")
+                    self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 呜呜... 画笔断掉了 qwq")
             else:
-                self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 连接绘画服务器失败惹 (Status: {response.status_code})")
+                self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 连接绘画服务器失败惹")
         except Exception as e:
             logger.error(f"绘图请求异常: {e}")
-            self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 绘画发生内部错误，脑子稍微有点乱...")
+            self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 绘画发生内部错误...")
+
+    # [新增] 图片解析功能
+    def analyze_image_content(self, image_url):
+        logger.info(f"正在解析图片: {image_url}")
+        headers = {
+            "Authorization": f"Bearer {DASHSCOPE_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "qwen3-vl-plus",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                        {"type": "text", "text": "用简短的语言描述此图。"}
+                    ]
+                }
+            ]
+        }
+        try:
+            response = requests.post(DASHSCOPE_CHAT_URL, headers=headers, json=payload, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                content = data['choices'][0]['message']['content']
+                logger.info(f"图片解析结果: {content}")
+                return content
+            else:
+                logger.error(f"图片解析失败 Status: {response.status_code}, Msg: {response.text}")
+                return "（图片解析失败，可能链接已过期或服务器繁忙）"
+        except Exception as e:
+            logger.error(f"图片解析异常: {e}")
+            return "（图片解析发生错误）"
 
     # ---------------- AI 聊天功能 ----------------
 
-    def chat_with_deepseek(self, group_id, user_id, content):
-        logger.info(f"AI聊天请求 - 群:{group_id} 用户:{user_id}")
+    # [修改] 增加 image_url 参数
+    def chat_with_deepseek(self, group_id, user_id, content, image_url=None):
+        logger.info(f"AI聊天请求 - 群:{group_id} 用户:{user_id} 图片:{'有' if image_url else '无'}")
+        
+        # 1. 如果有图片，先解析图片内容
+        image_description = ""
+        if image_url:
+            self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 看到图片啦，稍微看一眼... (OvO)")
+            image_description = self.analyze_image_content(image_url)
+            # 将图片描述拼接到用户内容中，让聊天AI知道用户发了什么图
+            user_input_with_context = f"【QQ用户:{user_id}】发送了一张图片，图片内容描述为：【{image_description}】。同时他说：{content}"
+        else:
+            user_input_with_context = f"【QQ用户:{user_id}】说：{content}"
+
         system_prompt = (
             f"你现在的设定如下：\n"
             f"1. 你的名字叫瞌睡猫，是一只可爱的猫娘，说话要带颜文字 ( >ω<), awa, qwq等。\n"
@@ -239,8 +261,10 @@ class QQBot:
             f"   - 你的主人QQ号是 {OWNER_QQ}，辨别清楚消息发送者QQ号。\n"
             f"   - 你的QQ号是 {BOT_QQ}。\n"
             f"4. 回复要简短（50字以内）。\n"
+            f"5. 你的功能包括：聊天、群管理、以及【AI绘图】。\n"
+            f"   - 如果用户想看图或者让你画画，请告诉他发送命令：/绘画 提示词。\n"
+            f"6. 如果用户发送了图片，我会把图片描述转述给你，请根据描述和用户互动。"
         )
-        user_input_with_context = f"【QQ用户:{user_id}】说：{content}"
         
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {DEEPSEEK_API_KEY}"}
         data = {
@@ -250,32 +274,31 @@ class QQBot:
         }
 
         try:
-            response = requests.post(DEEPSEEK_URL, headers=headers, json=data, timeout=15)
+            response = requests.post(DEEPSEEK_URL, headers=headers, json=data, timeout=20)
             if response.status_code == 200:
-                reply = response.json()['choices'][0]['message']['content'].replace("瞌睡猫：", "").strip() # 移除 AI 可能生成的多余前缀
+                reply = response.json()['choices'][0]['message']['content'].replace("瞌睡猫：", "").strip()
                 self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] {reply}")
             else:
                 self.send_group_msg(group_id, "喵... 脑子短路了 (API Error)")
         except Exception as e:
             logger.error(f"DeepSeek 请求异常: {e}")
 
-    # ---------------- 违规检测----------------
+    # ---------------- 违规检测 ----------------
 
     def check_violation(self, raw_message, message_id, group_id, user_id, role):
         if role in ['admin', 'owner']: return False
-        
         pure_text = re.sub(r'\[CQ:.*?\]', '', raw_message)
         
         if len(pure_text) > SPAM_MAX_LEN:
             self.recall_msg(message_id) 
             self.set_group_ban(group_id, user_id, 3600)
-            self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 呜哇，字太多啦！眼睛要看花了好过分！( >﹏< )")
+            self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 呜哇，字太多啦！( >﹏< )")
             return True
         
         if pure_text.count('\n') > SPAM_MAX_LINES:
             self.recall_msg(message_id) 
             self.set_group_ban(group_id, user_id, 3600)
-            self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 不要竖着发天书啦，屏幕要被撑破了！(｀Д´)")
+            self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 不要竖着发天书啦！(｀Д´)")
             return True
 
         for level, words in BAN_WORDS.items():
@@ -319,11 +342,11 @@ class QQBot:
         if raw_message.startswith("/绘画") or raw_message.startswith("/draw"):
             prompt = raw_message.replace("/绘画", "").replace("/draw", "").strip()
             if not prompt:
-                self.send_group_msg(group_id, "想画什么呢？要告诉我描述哦 (例如 /绘画 可爱的猫娘)")
+                self.send_group_msg(group_id, "想画什么呢？(例如 /绘画 可爱的猫娘)")
                 return
             allowed, remaining = self.check_draw_limit(user_id, role)
             if not allowed:
-                self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 呜... 画笔没墨水了，明天再来找我画画吧 (每日限{DRAW_DAILY_LIMIT}次) (qwq)")
+                self.send_group_msg(group_id, f"[CQ:at,qq={user_id}] 画笔没墨水了 (每日限{DRAW_DAILY_LIMIT}次) (qwq)")
                 return
             threading.Thread(target=self.generate_image, args=(group_id, user_id, prompt)).start()
             return
@@ -332,7 +355,7 @@ class QQBot:
         if raw_message == "111睡觉模式":
             if role in ['admin', 'owner'] or user_id == OWNER_QQ:
                 self.set_group_ban(group_id, TARGET_111_QQ, 8 * 3600)
-                self.send_group_msg(group_id, f"收到！这就让TA强制睡觉觉！ (¦3[▓▓]")
+                self.send_group_msg(group_id, f"收到！这就让TA强制睡觉觉！(¦3[▓▓]")
             else:
                 self.send_group_msg(group_id, "你不是我主人，才不听你的呢 (哼)")
             return
@@ -344,7 +367,7 @@ class QQBot:
             return
 
         # 管理员指令
-        if raw_message.startswith("/mute") or raw_message.startswith("/unmute") or raw_message.startswith("/status"):
+        if raw_message.startswith("/mute") or raw_message.startswith("/unmute"):
             if role not in ['admin', 'owner'] and user_id != OWNER_QQ: return
             try:
                 parts = raw_message.split()
@@ -358,10 +381,24 @@ class QQBot:
             except: pass
             return
 
-        # AI 聊天
+        # AI 聊天 (支持图文)
         if f"[CQ:at,qq={BOT_QQ}]" in raw_message:
-            clean_content = raw_message.replace(f"[CQ:at,qq={BOT_QQ}]", "").strip() or "你好"
-            threading.Thread(target=self.chat_with_deepseek, args=(group_id, user_id, clean_content)).start()
+            # 清理文字部分
+            clean_content = raw_message.replace(f"[CQ:at,qq={BOT_QQ}]", "")
+            # 去除图片CQ码，只保留纯文本给content（图片URL单独提取）
+            clean_text = re.sub(r'\[CQ:image,.*?\]', '', clean_content).strip() or "（分享了一张图片）"
+            
+            # [新增] 提取图片URL
+            # 正则匹配 [CQ:image...url=http...] 中的 http 链接
+            # 注意：NapCat/OneBot 的 url 参数通常包含在 CQ 码中
+            image_match = re.search(r'\[CQ:image,.*?url=(http[^,\]]+)', raw_message)
+            image_url = None
+            if image_match:
+                image_url = image_match.group(1)
+                # 有时候URL里会有amp;转义，需要处理一下
+                image_url = image_url.replace("&amp;", "&")
+
+            threading.Thread(target=self.chat_with_deepseek, args=(group_id, user_id, clean_text, image_url)).start()
 
 if __name__ == "__main__":
     bot = QQBot(WS_URL, WS_TOKEN) 
