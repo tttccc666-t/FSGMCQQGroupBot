@@ -61,7 +61,7 @@ pip install websocket-client requests
 
 ### 2. 配置脚本
 
-打开脚本文件（如 `bot1.py` 或 `main.py`），根据您的实际情况修改顶部的 **配置区域**：
+打开脚本文件，根据您的实际情况修改顶部的 **配置区域**：
 
 ```python
 # NapCat 连接配置
@@ -85,7 +85,7 @@ ENABLED_GROUPS = [123456789, 987654321]
 确保 NapCatQQ 已经登录并运行，然后在终端执行：
 
 ```bash
-python bot1.py
+python main.py
 ```
 
 看到日志输出 `WebSocket 连接成功` 即表示启动成功。
