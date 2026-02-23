@@ -61,7 +61,7 @@ pip install websocket-client requests
 
 ### 2. Configure Script
 
-Open your script (e.g., `bot1.py` or `main.py`) and modify the **Configuration Area** at the top:
+Open your script and modify the **Configuration Area** at the top:
 
 ```python
 # NapCat Connection Config
@@ -85,7 +85,7 @@ ENABLED_GROUPS = [123456789, 987654321]
 Ensure NapCatQQ is logged in and running, then execute in the terminal:
 
 ```bash
-python bot1.py
+python main.py
 ```
 
 If you see the log output `WebSocket 连接成功` (WebSocket Connected Successfully), the startup is complete.
